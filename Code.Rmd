@@ -1,0 +1,488 @@
+---
+title: "Code"
+author: "Yaxi Lou"
+date: "June 8, 2017"
+output: pdf_document
+---
+
+## xgboost
+### preparing data set
+\textbf{xgboost requres a numeric matrix, so we have to recode categorical variables to numeric variables based on the levels and frequencies.}  
+```{r}
+# read dataset
+library(data.table)
+lafd_train<-fread("lafdtraining.csv")
+lafd_test<-fread("testing.without.response.txt",sep=",")
+```
+
+\textbf{We find test data contains NAs under variable Dispatch Sequence, replace it by 0.}  
+```{r}
+train<-lafd_train
+test<-lafd_test
+rm(lafd_train)
+rm(lafd_test)
+## We find test data contains NAs under variable Dispatch Sequence, replace it by 0
+for(i in 1:nrow(test)){
+if(is.na(test$`Dispatch Sequence`[i]))
+  test$`Dispatch Sequence`[i]<-0
+}
+train[which(is.na(train$`Dispatch Sequence`)),6]<-0
+## delete NAs from vatiable elapsed_time in train
+train<-train[-which(is.na(train$elapsed_time)),]
+## delete NAs from variable PPE Level in train
+train<-train[-which(is.na(train$`PPE Level`)),]
+```
+
+
+\textbf{We find the corresponding zip code to each station.}  
+
+```{r}
+train$zip<-0
+train[which(train$`First in District`==1),]$zip<-90031
+train[which(train$`First in District`==2),]$zip<-90033
+train[which(train$`First in District`==3),]$zip<-90012
+train[which(train$`First in District`==4),]$zip<-90012
+train[which(train$`First in District`==5),]$zip<-90045
+train[which(train$`First in District`==6),]$zip<-90004
+train[which(train$`First in District`==7),]$zip<-91331
+train[which(train$`First in District`==8),]$zip<-91326
+train[which(train$`First in District`==9),]$zip<-90014
+train[which(train$`First in District`==10),]$zip<-90015
+train[which(train$`First in District`==11),]$zip<-90057
+train[which(train$`First in District`==12),]$zip<-90042
+train[which(train$`First in District`==13),]$zip<-90006
+train[which(train$`First in District`==14),]$zip<-90011
+train[which(train$`First in District`==15),]$zip<-90007
+train[which(train$`First in District`==16),]$zip<-90032
+train[which(train$`First in District`==17),]$zip<-90021
+train[which(train$`First in District`==18),]$zip<-91344
+train[which(train$`First in District`==19),]$zip<-90049
+train[which(train$`First in District`==20),]$zip<-90026
+train[which(train$`First in District`==21),]$zip<-90011
+train[which(train$`First in District`==23),]$zip<-90272
+train[which(train$`First in District`==24),]$zip<-91040
+train[which(train$`First in District`==25),]$zip<-90023
+train[which(train$`First in District`==26),]$zip<-90018
+train[which(train$`First in District`==27),]$zip<-90028
+train[which(train$`First in District`==28),]$zip<-91326
+train[which(train$`First in District`==29),]$zip<-90010
+train[which(train$`First in District`==33),]$zip<-90003
+train[which(train$`First in District`==34),]$zip<-90019
+train[which(train$`First in District`==35),]$zip<-90027
+train[which(train$`First in District`==36),]$zip<-90732
+train[which(train$`First in District`==37),]$zip<-90024
+train[which(train$`First in District`==38),]$zip<-90744
+train[which(train$`First in District`==39),]$zip<-91401
+train[which(train$`First in District`==40),]$zip<-90731
+train[which(train$`First in District`==41),]$zip<-90046
+train[which(train$`First in District`==42),]$zip<-90041
+train[which(train$`First in District`==43),]$zip<-90034
+train[which(train$`First in District`==44),]$zip<-90065
+train[which(train$`First in District`==46),]$zip<-90037
+train[which(train$`First in District`==47),]$zip<-90032
+train[which(train$`First in District`==48),]$zip<-90731
+train[which(train$`First in District`==49),]$zip<-90744
+train[which(train$`First in District`==50),]$zip<-90065
+train[which(train$`First in District`==51),]$zip<-90045
+train[which(train$`First in District`==52),]$zip<-90029
+train[which(train$`First in District`==55),]$zip<-90041
+train[which(train$`First in District`==56),]$zip<-90039
+train[which(train$`First in District`==57),]$zip<-90044
+train[which(train$`First in District`==58),]$zip<-90035
+train[which(train$`First in District`==59),]$zip<-90025
+train[which(train$`First in District`==60),]$zip<-91601
+train[which(train$`First in District`==61),]$zip<-90036
+train[which(train$`First in District`==62),]$zip<-90066
+train[which(train$`First in District`==63),]$zip<-90291
+train[which(train$`First in District`==64),]$zip<-90061
+train[which(train$`First in District`==65),]$zip<-90002
+train[which(train$`First in District`==66),]$zip<-90047
+train[which(train$`First in District`==67),]$zip<-90094
+train[which(train$`First in District`==68),]$zip<-90019
+train[which(train$`First in District`==69),]$zip<-90272
+train[which(train$`First in District`==70),]$zip<-91324
+train[which(train$`First in District`==71),]$zip<-90024
+train[which(train$`First in District`==72),]$zip<-91303
+train[which(train$`First in District`==73),]$zip<-91335
+train[which(train$`First in District`==74),]$zip<-91042
+train[which(train$`First in District`==75),]$zip<-91345
+train[which(train$`First in District`==76),]$zip<-90068
+train[which(train$`First in District`==77),]$zip<-91352
+train[which(train$`First in District`==78),]$zip<-91604
+train[which(train$`First in District`==79),]$zip<-90248
+train[which(train$`First in District`==81),]$zip<-91402
+train[which(train$`First in District`==82),]$zip<-90028
+train[which(train$`First in District`==83),]$zip<-91436
+train[which(train$`First in District`==84),]$zip<-91367
+train[which(train$`First in District`==85),]$zip<-90710
+train[which(train$`First in District`==86),]$zip<-91602
+train[which(train$`First in District`==87),]$zip<-91343
+train[which(train$`First in District`==88),]$zip<-91403
+train[which(train$`First in District`==89),]$zip<-91605
+train[which(train$`First in District`==90),]$zip<-91406
+train[which(train$`First in District`==91),]$zip<-91342
+train[which(train$`First in District`==92),]$zip<-90064
+train[which(train$`First in District`==93),]$zip<-91356
+train[which(train$`First in District`==94),]$zip<-90008
+train[which(train$`First in District`==95),]$zip<-90045
+train[which(train$`First in District`==96),]$zip<-91311
+train[which(train$`First in District`==97),]$zip<-90046
+train[which(train$`First in District`==98),]$zip<-91331
+train[which(train$`First in District`==99),]$zip<-90210
+train[which(train$`First in District`==100),]$zip<-91406
+train[which(train$`First in District`==101),]$zip<-90732
+train[which(train$`First in District`==102),]$zip<-91401
+train[which(train$`First in District`==103),]$zip<-91325
+train[which(train$`First in District`==104),]$zip<-91306
+train[which(train$`First in District`==105),]$zip<-91367
+train[which(train$`First in District`==106),]$zip<-91304
+train[which(train$`First in District`==107),]$zip<-91311
+train[which(train$`First in District`==108),]$zip<-90210
+train[which(train$`First in District`==109),]$zip<-90049
+train[which(train$`First in District`==112),]$zip<-90731
+```
+
+```{r}
+test$zip<-0
+test[which(test$`First in District`==1),]$zip<-90031
+test[which(test$`First in District`==2),]$zip<-90033
+test[which(test$`First in District`==3),]$zip<-90012
+test[which(test$`First in District`==4),]$zip<-90012
+test[which(test$`First in District`==5),]$zip<-90045
+test[which(test$`First in District`==6),]$zip<-90004
+test[which(test$`First in District`==7),]$zip<-91331
+test[which(test$`First in District`==8),]$zip<-91326
+test[which(test$`First in District`==9),]$zip<-90014
+test[which(test$`First in District`==10),]$zip<-90015
+test[which(test$`First in District`==11),]$zip<-90057
+test[which(test$`First in District`==12),]$zip<-90042
+test[which(test$`First in District`==13),]$zip<-90006
+test[which(test$`First in District`==14),]$zip<-90011
+test[which(test$`First in District`==15),]$zip<-90007
+test[which(test$`First in District`==16),]$zip<-90032
+test[which(test$`First in District`==17),]$zip<-90021
+test[which(test$`First in District`==18),]$zip<-91344
+test[which(test$`First in District`==19),]$zip<-90049
+test[which(test$`First in District`==20),]$zip<-90026
+test[which(test$`First in District`==21),]$zip<-90011
+test[which(test$`First in District`==23),]$zip<-90272
+test[which(test$`First in District`==24),]$zip<-91040
+test[which(test$`First in District`==25),]$zip<-90023
+test[which(test$`First in District`==26),]$zip<-90018
+test[which(test$`First in District`==27),]$zip<-90028
+test[which(test$`First in District`==28),]$zip<-91326
+test[which(test$`First in District`==29),]$zip<-90010
+test[which(test$`First in District`==33),]$zip<-90003
+test[which(test$`First in District`==34),]$zip<-90019
+test[which(test$`First in District`==35),]$zip<-90027
+test[which(test$`First in District`==36),]$zip<-90732
+test[which(test$`First in District`==37),]$zip<-90024
+test[which(test$`First in District`==38),]$zip<-90744
+test[which(test$`First in District`==39),]$zip<-91401
+test[which(test$`First in District`==40),]$zip<-90731
+test[which(test$`First in District`==41),]$zip<-90046
+test[which(test$`First in District`==42),]$zip<-90041
+test[which(test$`First in District`==43),]$zip<-90034
+test[which(test$`First in District`==44),]$zip<-90065
+test[which(test$`First in District`==46),]$zip<-90037
+test[which(test$`First in District`==47),]$zip<-90032
+test[which(test$`First in District`==48),]$zip<-90731
+test[which(test$`First in District`==49),]$zip<-90744
+test[which(test$`First in District`==50),]$zip<-90065
+test[which(test$`First in District`==51),]$zip<-90045
+test[which(test$`First in District`==52),]$zip<-90029
+test[which(test$`First in District`==55),]$zip<-90041
+test[which(test$`First in District`==56),]$zip<-90039
+test[which(test$`First in District`==57),]$zip<-90044
+test[which(test$`First in District`==58),]$zip<-90035
+test[which(test$`First in District`==59),]$zip<-90025
+test[which(test$`First in District`==60),]$zip<-91601
+test[which(test$`First in District`==61),]$zip<-90036
+test[which(test$`First in District`==62),]$zip<-90066
+test[which(test$`First in District`==63),]$zip<-90291
+test[which(test$`First in District`==64),]$zip<-90061
+test[which(test$`First in District`==65),]$zip<-90002
+test[which(test$`First in District`==66),]$zip<-90047
+test[which(test$`First in District`==67),]$zip<-90094
+test[which(test$`First in District`==68),]$zip<-90019
+test[which(test$`First in District`==69),]$zip<-90272
+test[which(test$`First in District`==70),]$zip<-91324
+test[which(test$`First in District`==71),]$zip<-90024
+test[which(test$`First in District`==72),]$zip<-91303
+test[which(test$`First in District`==73),]$zip<-91335
+test[which(test$`First in District`==74),]$zip<-91042
+test[which(test$`First in District`==75),]$zip<-91345
+test[which(test$`First in District`==76),]$zip<-90068
+test[which(test$`First in District`==77),]$zip<-91352
+test[which(test$`First in District`==78),]$zip<-91604
+test[which(test$`First in District`==79),]$zip<-90248
+test[which(test$`First in District`==81),]$zip<-91402
+test[which(test$`First in District`==82),]$zip<-90028
+test[which(test$`First in District`==83),]$zip<-91436
+test[which(test$`First in District`==84),]$zip<-91367
+test[which(test$`First in District`==85),]$zip<-90710
+test[which(test$`First in District`==86),]$zip<-91602
+test[which(test$`First in District`==87),]$zip<-91343
+test[which(test$`First in District`==88),]$zip<-91403
+test[which(test$`First in District`==89),]$zip<-91605
+test[which(test$`First in District`==90),]$zip<-91406
+test[which(test$`First in District`==91),]$zip<-91342
+test[which(test$`First in District`==92),]$zip<-90064
+test[which(test$`First in District`==93),]$zip<-91356
+test[which(test$`First in District`==94),]$zip<-90008
+test[which(test$`First in District`==95),]$zip<-90045
+test[which(test$`First in District`==96),]$zip<-91311
+test[which(test$`First in District`==97),]$zip<-90046
+test[which(test$`First in District`==98),]$zip<-91331
+test[which(test$`First in District`==99),]$zip<-90210
+test[which(test$`First in District`==100),]$zip<-91406
+test[which(test$`First in District`==101),]$zip<-90732
+test[which(test$`First in District`==102),]$zip<-91401
+test[which(test$`First in District`==103),]$zip<-91325
+test[which(test$`First in District`==104),]$zip<-91306
+test[which(test$`First in District`==105),]$zip<-91367
+test[which(test$`First in District`==106),]$zip<-91304
+test[which(test$`First in District`==107),]$zip<-91311
+test[which(test$`First in District`==108),]$zip<-90210
+test[which(test$`First in District`==109),]$zip<-90049
+test[which(test$`First in District`==112),]$zip<-90731
+```
+
+\textbf{Recode other vatiables according to levels.}  
+```{r}
+table(train$`Emergency Dispatch Code`) #Emergency
+table(train$`Dispatch Status`) #12 chr
+table(train$`Unit Type`) #40 chr
+table(train$`PPE Level`) # EMS Non-EMS
+```
+
+\textbf{Emergency Dispatch Code}  
+```{r}
+train$`Emergency Dispatch Code`<-1
+train$`Emergency Dispatch Code`<-as.numeric(train$`Emergency Dispatch Code`)
+test$Emergency.Dispatch.Code<-1
+test$Emergency.Dispatch.Code<-as.numeric(test$Emergency.Dispatch.Code)
+```
+
+\textbf{Dispatch Status}  
+```{r}
+train$`Dispatch Status`<-as.factor(train$`Dispatch Status`)
+num.class <- length(levels(train$`Dispatch Status`))
+levels(train$`Dispatch Status`) <- 1:num.class
+train$`Dispatch Status`<-as.numeric(train$`Dispatch Status`)
+
+test$`Dispatch Status`<-as.factor(test$`Dispatch Status`)
+num.class <- length(levels(test$`Dispatch Status`))
+levels(test$`Dispatch Status`) <- 1:num.class
+test$`Dispatch Status`<-as.numeric(test$`Dispatch Status`)
+```
+
+\textbf{Unit Type}  
+```{r}
+train$`Unit Type`<-as.factor(train$`Unit Type`)
+num.class <- length(levels(train$`Unit Type`))
+levels(train$`Unit Type`) <- 1:num.class
+train$`Unit Type`<-as.numeric(train$`Unit Type`)
+
+test$`Unit Type`<-as.factor(test$`Unit Type`)
+num.class <- length(levels(test$`Unit Type`))
+levels(test$`Unit Type`) <- 1:num.class
+test$`Unit Type`<-as.numeric(test$`Unit Type`)
+```
+
+\textbf{PPE Level}  
+```{r}
+train$`PPE Level`<-as.factor(train$`PPE Level`)
+num.class <- length(levels(train$`PPE Level`))
+levels(train$`PPE Level`) <- 1:num.class
+train$`PPE Level`<-as.numeric(train$`PPE Level`)
+
+test$`PPE Level`<-as.factor(test$`PPE Level`)
+num.class <- length(levels(test$`PPE Level`))
+levels(test$`PPE Level`) <- 1:num.class
+test$`PPE Level`<-as.numeric(test$`PPE Level`)
+```
+
+\textbf{convert int to numeric}  
+```{r}
+train$year<-as.numeric(train$year)
+train$`First in District`<-as.numeric(train$`First in District`)
+train$`Dispatch Sequence`<-as.numeric(train$`Dispatch Sequence`)
+
+test$year<-as.numeric(test$year)
+test$`First in District`<-as.numeric(test$`First in District`)
+test$`Dispatch Sequence`<-as.numeric(test$`Dispatch Sequence`)
+```
+
+\textbf{Incident Creation Time (GMT)}  
+```{r}
+library(lubridate)
+
+train$`Incident Creation Time (GMT)`<- hms(train$`Incident Creation Time (GMT)`)
+train$hour <- hour(train$`Incident Creation Time (GMT)`)
+train$minute <- minute(train$`Incident Creation Time (GMT)`)
+train$hour <- ifelse(train$minute >= 40, train$hour + 1, train$hour)
+train$hour <- ifelse(train$hour == 24, 0,train$hour)
+train$timelevel <- ifelse(train$hour >=7 & train$hour <= 10, 1,
+                         ifelse(train$hour >=11 & train$hour <= 14, 2,
+                                ifelse(train$hour >=15 & train$hour <= 19, 3,
+                                       ifelse(train$hour >=20 & train$hour <= 23, 4,5))))
+
+
+test$`Incident Creation Time (GMT)`<- hms(test$`Incident Creation Time (GMT)`)
+test$hour <- hour(test$`Incident Creation Time (GMT)`)
+test$minute <- minute(test$`Incident Creation Time (GMT)`)
+test$hour <- ifelse(test$minute >= 40, test$hour + 1, test$hour)
+test$hour <- ifelse(test$hour == 24, 0,test$hour)
+test$timelevel <- ifelse(test$hour >=7 & test$hour <= 10, 1,
+                         ifelse(test$hour >=11 & test$hour <= 14, 2,
+                                ifelse(test$hour >=15 & test$hour <= 19, 3,
+                                       ifelse(test$hour >=20 & test$hour <= 23, 4,5))))
+```
+
+\textbf{Incident ID}  
+```{r}
+library(dplyr)
+id_train<-train %>% group_by(incident.ID) %>% count()
+train<-merge(train,id_train,by="incident.ID")
+
+id_test<-test %>% group_by(incident.ID) %>% count()
+test<-merge(test,id_test,by="incident.ID")
+```
+
+\textbf{traffic (There are heavier traffic during rush hour)}  
+```{r}
+train$traffic<-0
+train[which(train$timelevel==1),]$traffic<-3
+train[which(train$timelevel==2),]$traffic<-2
+train[which(train$timelevel==3),]$traffic<-3
+train[which(train$timelevel==4),]$traffic<-2
+train[which(train$timelevel==5),]$traffic<-1
+
+test$traffic<-0
+test[which(test$timelevel==1),]$traffic<-3
+test[which(test$timelevel==2),]$traffic<-2
+test[which(test$timelevel==3),]$traffic<-3
+test[which(test$timelevel==4),]$traffic<-2
+test[which(test$timelevel==5),]$traffic<-1
+```
+
+### Apply xgboost model
+\textbf{separate training and testing data}  
+```{r}
+set.seed(123)
+i.train <- sample(nrow(train), nrow(train)*0.75,replace=FALSE)
+Training_Inner<-train[i.train,]
+Test_Inner<- train[-i.train,]
+```
+
+\textbf{preparing training set}  
+```{r}
+library(xgboost)
+new_tr <- model.matrix(~.+0,data = Training_Inner[,c(3,6,9,12,16,17)]) 
+new_ts <- model.matrix(~.+0,data = Test_Inner[,c(3,6,9,12,16,17)])
+dtrain <- xgb.DMatrix(data = new_tr,label = Training_Inner$elapsed_time) 
+dtest <- xgb.DMatrix(data = new_ts,label = Test_Inner$elapsed_time)
+```
+
+\textbf{model}  
+```{r}
+params <- list(booster = "gbtree", objective = "reg:linear", eta=0.3, gamma=0, max_depth=10, min_child_weight=1, subsample=1, colsample_bytree=1)
+
+xgb1 <- xgb.train (params = params, data= dtrain, nrounds = 100, watchlist = list(train=dtrain), print_every_n = 10, early_stop_round = 10, maximize = F , eval_metric = "rmse")
+
+xgbpred1<-predict(xgb1,new_ts)
+mean((xgbpred1-Test_Inner$elapsed_time)^2)
+```
+
+\textbf{features importance}  
+```{r}
+library(ggplot2)
+library(Ckmeans.1d.dp)
+try<-xgb.importance(names(test[,-c(1,2)]),model=xgb1)
+print(try)
+xgb.ggplot.importance(try, measure = "Frequency", rel_to_first = TRUE)
+```
+
+\textbf{prediction}  
+```{r} 
+new_test <- model.matrix(~.+0,data = test[,c(6,8,9,11,12,17)])
+xgbpred <- predict (xgb1,new_test)
+prediction<-cbind(as.integer(test$row.id),xgbpred)
+write.csv(prediction,file="prediction.csv")
+```
+
+## Random Forest
+```{r}
+lafd <- read_csv("lafdtraining.csv")
+load("lafd_test.RData")
+```
+
+```{r}
+list1 <- lafd[, c(1,7,8)]
+trial1 <- merge(train, list1, by = "row.id")
+list2 <- lafd_test[, c(1,7,8)]
+test1 <- merge(test, list2, by = "row.id")
+save(trial1, file = "mytrain1.RData")
+save(test1, file = "mytest1.RData")
+```
+
+```{r}
+trial2 <- trial1[, -c(2:5,7,8,10,13,14)]
+test2 <- test1[, -c(2:5,7,8,10,12,13)]
+names(trial2) <- c("row.id","sequence", "ppe", "elapsed_time", "zip", "timelevel", "n", "traffic","status","unit")
+names(test2) <- c("row.id","sequence","ppe", "zip", "timelevel", "n", "traffic", "status","unit")
+```
+
+```{r}
+list1 <- which(trial2$unit == "FC - Fire Chief"| trial2$unit == "HC - Hose Carrier" | trial2$unit == "PT - Planning Trailer")
+trial2$unit[list1] <- "Other"
+test2$unit <- as.character(test2$unit)
+test2$unit[which(test2$unit == "RP - Rehab Plug Buggy")] <- "Other"
+test2$unit <- as.factor(test2$unit)
+```
+
+```{r}
+trial2$status <- ifelse(trial2$status == "OVD" | trial2$status =="CAV" | trial2$status == "WRS" | trial2$status =="PGR" | trial2$status =="TSP", "OTHER", trial2$status)
+test2$status <- as.character(test2$status)
+test2$status <- ifelse(test2$status == "OVD" | test2$status =="CAV" | test2$status == "WRS" | test2$status =="PGR" | test2$status =="TSP", "OTHER", test2$status)
+trial2$unit <- as.factor(trial2$unit)
+```
+
+```{r}
+trial2$speed <- ifelse(trial2$timelevel == 5 & trial2 $ traffic == 1, "low", 
+                       ifelse(trial2$timelevel == 2 & trial2$traffic == 2, "medium", 
+                              ifelse(trial2$timelevel == 4 & trial2$traffic == 2, "medium","high")))
+
+test2$speed <- ifelse(test2$timelevel == 5 & test2 $traffic == 1, "low", 
+                       ifelse(test2$timelevel == 2 &test2$traffic == 2, "medium", 
+ifelse(test2$timelevel == 4 & test2$traffic == 2, "medium","high")))
+```
+
+```{r}
+trial2 <- trial2[, -c(1)]
+test2 <- test2[, -c(1,)]
+```
+
+\textbf{Apply model}
+```{r}
+library(h2o)
+localH2O <- h2o.init(nthreads = -1)
+h2o.removeAll()
+```
+
+```{r}
+train.h2o <- as.h2o(trial3)
+test.h2o <- as.h2o(test3)
+colnames(train.h2o)
+y.dep <- 3
+x.indep <- c(1,2,4,5,6,7,8,9)
+rforest.model <- h2o.randomForest(y=y.dep, x=x.indep, training_frame = train.h2o, ntrees = 500, mtries = 4, max_depth = 20, seed = 1000)
+```
+
+```{r}
+h2o.performance(rforest.model)
+h2o.varimp(rforest.model)
+predict.rforest <- as.data.frame(h2o.predict(rforest.model, test.h2o))
+```
+
