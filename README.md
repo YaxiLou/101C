@@ -1,2 +1,3 @@
 # Stats 101C Data Mining
-Applying many Machine Learning methods and make prediction from existing data.
+Final project of Los Angeles Fire Department elapsed time prediction
+Completed by Yaxi Lou, Xin Jin and Yu Zhang
