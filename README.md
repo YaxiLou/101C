@@ -1,5 +1,5 @@
 ## Stats 101C Data Mining
-Final project of Los Angeles Fire Department elapsed time prediction;
+Los Angeles Fire Department elapsed time prediction;
 
 Data cleaning R code included; 
 
